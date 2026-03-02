@@ -18,8 +18,13 @@ class VerifyOrganizationMembership
     {
         $organization = $request->route('organization');
 
+        // Route model binding may not have run yet (e.g. with Volt full-page components)
         if (!$organization instanceof Organization) {
-            abort(404);
+            $organization = $organization ? Organization::find($organization) : null;
+            if (!$organization) {
+                abort(404);
+            }
+            $request->route()->setParameter('organization', $organization);
         }
 
         $user = $request->user();

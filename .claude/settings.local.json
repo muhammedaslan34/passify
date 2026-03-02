@@ -4,7 +4,8 @@
       "Bash(git add docs/plans/2026-03-02-credential-vault-design.md)",
       "Bash(git commit:*)",
       "Bash(composer require laravel/breeze --dev --no-interaction)",
-      "Bash(php artisan breeze:install livewire --no-interaction)"
+      "Bash(php artisan breeze:install livewire --no-interaction)",
+      "Bash(composer show)"
     ]
   }
 }
