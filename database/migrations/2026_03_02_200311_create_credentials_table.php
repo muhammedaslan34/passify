@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('credentials', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained('organizations')->onDelete('cascade');
+            $table->enum('service_type', ['hosting', 'domain', 'email', 'database', 'social_media', 'analytics', 'other']);
+            $table->string('name');
+            $table->string('website_url')->nullable();
+            $table->string('email')->nullable();
+            $table->string('password');
+            $table->text('note')->nullable();
             $table->timestamps();
+            $table->index('organization_id');
+            $table->index('service_type');
         });
     }
 

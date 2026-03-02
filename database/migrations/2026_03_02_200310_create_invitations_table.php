@@ -18,7 +18,7 @@ return new class extends Migration
             $table->enum('role', ['owner', 'member'])->default('member');
             $table->string('token')->unique();
             $table->timestamp('accepted_at')->nullable();
-            $table->timestamp('expires_at');
+            $table->timestamp('expires_at')->nullable();
             $table->timestamps();
             $table->index('token');
             $table->index('email');
