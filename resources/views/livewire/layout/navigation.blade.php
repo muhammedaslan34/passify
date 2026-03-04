@@ -37,8 +37,11 @@ new class extends Component
                         {{ __('Organizations') }}
                     </x-nav-link>
                     @if(auth()->user()->is_super_admin)
-                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.*')" wire:navigate>
+                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" wire:navigate>
                             {{ __('Admin') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')" wire:navigate>
+                            {{ __('Users') }}
                         </x-nav-link>
                     @endif
                 </div>
@@ -96,8 +99,11 @@ new class extends Component
                 {{ __('Organizations') }}
             </x-responsive-nav-link>
             @if(auth()->user()->is_super_admin)
-                <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.*')" wire:navigate>
+                <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" wire:navigate>
                     {{ __('Admin') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')" wire:navigate>
+                    {{ __('Users') }}
                 </x-responsive-nav-link>
             @endif
         </div>

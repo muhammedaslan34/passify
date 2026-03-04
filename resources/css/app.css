@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Mobile bottom nav: safe-area for notched devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Floating bottom nav: fixed to viewport bottom, mobile only; hidden on tablet/desktop/laptop */
+.bottom-nav-float {
+  position: fixed !important;
+  left: 0;
+  right: 0;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0));
+  display: flex;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: none; /* padding area doesn't block page; bar + links get auto below */
+}
+@media (min-width: 768px) {
+  .bottom-nav-float {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* Ensure bottom nav bar and links are always clickable */
+.bottom-nav-float > div {
+  pointer-events: auto !important;
+}
+.bottom-nav-float a {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative;
+  z-index: 20;
+}
+
+/* Respect reduced motion (UI/UX Pro Max a11y) */
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-item {
+    transition-duration: 0.01ms;
+  }
+}
