@@ -7,6 +7,7 @@ Route::post('/auth/token', [\App\Http\Controllers\Api\AuthController::class, 'to
 Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/auth/token', [\App\Http\Controllers\Api\AuthController::class, 'revoke']);
     Route::get('/organizations', [\App\Http\Controllers\Api\OrganizationController::class, 'index']);
+    Route::post('/organizations', [\App\Http\Controllers\Api\OrganizationController::class, 'store']);
     Route::get('/organizations/{organization}', [\App\Http\Controllers\Api\OrganizationController::class, 'show']);
     Route::get('/organizations/{organization}/credentials', [\App\Http\Controllers\Api\CredentialController::class, 'index']);
     Route::post('/organizations/{organization}/credentials', [\App\Http\Controllers\Api\CredentialController::class, 'store']);
