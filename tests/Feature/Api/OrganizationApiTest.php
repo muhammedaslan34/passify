@@ -28,7 +28,8 @@ class OrganizationApiTest extends TestCase
         $this->getJson('/api/organizations')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $myOrg->id);
+            ->assertJsonPath('data.0.id', $myOrg->id)
+            ->assertJsonPath('data.0.role', 'owner');
     }
 
     public function test_show_returns_org_with_credentials_count(): void
@@ -40,6 +41,7 @@ class OrganizationApiTest extends TestCase
         $this->getJson("/api/organizations/{$org->id}")
             ->assertOk()
             ->assertJsonPath('data.id', $org->id)
+            ->assertJsonPath('data.credentials_count', 0)
             ->assertJsonStructure(['data' => ['id', 'name', 'website_url', 'role', 'credentials_count']]);
     }
 
@@ -55,5 +57,31 @@ class OrganizationApiTest extends TestCase
     public function test_unauthenticated_request_returns_401(): void
     {
         $this->getJson('/api/organizations')->assertUnauthorized();
+    }
+
+    public function test_authenticated_user_can_create_organization(): void
+    {
+        $user = $this->actingAsApiUser();
+
+        $this->postJson('/api/organizations', [
+            'name'        => 'Acme Corp',
+            'website_url' => 'https://acme.com',
+            'description' => 'Test org',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.name', 'Acme Corp')
+        ->assertJsonPath('data.role', 'owner')
+        ->assertJsonPath('data.credentials_count', 0);
+
+        $this->assertDatabaseHas('organizations', ['name' => 'Acme Corp', 'created_by' => $user->id]);
+    }
+
+    public function test_create_organization_requires_name(): void
+    {
+        $this->actingAsApiUser();
+
+        $this->postJson('/api/organizations', [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['name']);
     }
 }

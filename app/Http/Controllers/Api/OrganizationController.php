@@ -28,28 +28,27 @@ class OrganizationController extends Controller
 
     public function show(Request $request, Organization $organization)
     {
-        if (! $organization->isMemberOf($request->user())) {
+        $member = $organization->members()
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (! $member) {
             abort(403);
         }
-
-        $role = $organization->members()
-            ->where('user_id', $request->user()->id)
-            ->first()
-            ->pivot
-            ->role;
 
         return response()->json(['data' => [
             'id'                => $organization->id,
             'name'              => $organization->name,
             'website_url'       => $organization->website_url,
             'description'       => $organization->description,
-            'role'              => $role,
-            'credentials_count' => $organization->credentials()->count(),
+            'role'              => $member->pivot->role,
+            'credentials_count' => $organization->loadCount('credentials')->credentials_count,
         ]]);
     }
 
     public function store(Request $request)
     {
+        // Any authenticated user can create organizations
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'website_url' => ['nullable', 'url', 'max:255'],
