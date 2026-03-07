@@ -120,4 +120,30 @@ class CredentialApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'data');
     }
+
+    public function test_non_member_cannot_list_credentials(): void
+    {
+        $owner = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $owner->id]);
+        $org->members()->attach($owner->id, ['role' => 'owner']);
+
+        $outsider = User::factory()->create();
+        $this->withToken($outsider->createToken('test')->plainTextToken);
+
+        $this->getJson("/api/organizations/{$org->id}/credentials")
+            ->assertForbidden();
+    }
+
+    public function test_cannot_update_credential_from_different_org(): void
+    {
+        [$user, $org] = $this->setupOwner();
+
+        $otherOrg = Organization::factory()->create();
+        $otherCred = Credential::factory()->create(['organization_id' => $otherOrg->id]);
+
+        $this->putJson("/api/organizations/{$org->id}/credentials/{$otherCred->id}", [
+            'name' => 'Hacked',
+        ])
+        ->assertNotFound();
+    }
 }

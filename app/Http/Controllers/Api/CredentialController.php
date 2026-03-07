@@ -50,11 +50,11 @@ class CredentialController extends Controller
 
         $validated = $request->validate([
             'service_type' => ['sometimes', 'in:hosting,domain,email,database,social_media,analytics,other'],
-            'name'         => ['sometimes', 'string', 'max:255'],
-            'website_url'  => ['nullable', 'url', 'max:255'],
-            'email'        => ['nullable', 'email', 'max:255'],
+            'name'         => ['sometimes', 'required', 'string', 'max:255'],
+            'website_url'  => ['sometimes', 'nullable', 'url', 'max:255'],
+            'email'        => ['sometimes', 'nullable', 'email', 'max:255'],
             'password'     => ['sometimes', 'string', 'max:1000'],
-            'note'         => ['nullable', 'string', 'max:2000'],
+            'note'         => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 
         $credential->update($validated);
