@@ -59,11 +59,4 @@ function getCryptoRandom() {
     return crypto.getRandomValues(new Uint32Array(1))[0] / (0xFFFFFFFF + 1);
 }
 
-// UMD export — works as ES module AND in service worker context
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generate, strength };
-} else if (typeof self !== 'undefined') {
-    self.passifyGenerator = { generate, strength };
-}
-
 export { generate, strength };
