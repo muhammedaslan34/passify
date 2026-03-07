@@ -22,6 +22,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('/organizations/create', 'pages.organizations.create')
         ->name('organizations.create');
 
+    // ─── Chrome Extension Auth ───────────────────────────────────────────────
+    Route::get('/extension/auth', [\App\Http\Controllers\ExtensionAuthController::class, 'show'])
+        ->name('extension.auth');
+    Route::post('/extension/auth/connect', [\App\Http\Controllers\ExtensionAuthController::class, 'connect'])
+        ->name('extension.connect');
+
     // Org-scoped routes — org membership enforced by middleware
     Route::middleware('org.member')->group(function () {
 
