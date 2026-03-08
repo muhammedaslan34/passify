@@ -140,6 +140,23 @@
         });
     }
 
+    // ── Extension token handshake ──────────────────────────────────────────
+    function tryHandshake() {
+        const meta = document.querySelector('meta[name="passify-extension-token"]');
+        if (!meta) return;
+        const token = meta.getAttribute('content');
+        if (!token) return;
+
+        chrome.runtime.sendMessage({ type: 'SAVE_TOKEN', token }, () => {
+            document.getElementById('card-waiting').style.display = 'none';
+            document.getElementById('card-success').style.display = 'block';
+            setTimeout(() => window.close(), 1500);
+        });
+    }
+
+    document.addEventListener('passify:token-ready', tryHandshake);
+    tryHandshake(); // also try immediately in case event already fired
+
     // Delay autofill check to let the page settle
     setTimeout(checkAutofill, 1500);
 })();

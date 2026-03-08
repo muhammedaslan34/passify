@@ -1,21 +1,14 @@
 const DEFAULT_PASSIFY_URL = 'https://passify.pixeloud.com';
 
-// Listen for OAuth redirect from extension auth page
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url && changeInfo.url.startsWith('passify-extension://auth')) {
-        const urlStr = changeInfo.url.replace('passify-extension://', 'https://passify-extension/');
-        const url = new URL(urlStr);
-        const token = url.searchParams.get('token');
-        if (token) {
-            chrome.storage.local.set({ token }, () => {
-                chrome.tabs.remove(tabId);
-            });
-        }
-    }
-});
-
 // Proxy API calls from content scripts (avoids CORS issues)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SAVE_TOKEN') {
+        chrome.storage.local.set({ token: message.token }, () => {
+            sendResponse({ ok: true });
+        });
+        return true;
+    }
+
     if (message.type === 'API_REQUEST') {
         chrome.storage.local.get(['token', 'passifyUrl'], ({ token, passifyUrl }) => {
             const base = passifyUrl || DEFAULT_PASSIFY_URL;

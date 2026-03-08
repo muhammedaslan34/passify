@@ -15,6 +15,6 @@ class ExtensionAuthController extends Controller
     {
         $token = $request->user()->createToken('chrome-extension')->plainTextToken;
 
-        return redirect('passify-extension://auth?token=' . urlencode($token));
+        return view('extension-auth-success', ['token' => $token]);
     }
 }
