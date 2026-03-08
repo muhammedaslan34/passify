@@ -110,8 +110,12 @@ new #[Layout('layouts.app')] class extends Component
                     <x-input-error :messages="$errors->get('email')" class="mt-2"/>
                 </div>
 
-                <div x-data="{ show: false }">
-                    <x-input-label for="password" value="Password *"/>
+                <div x-data="{ show: false }"
+                     x-on:use-generated-password.window="$wire.set('password', $event.detail.password)">
+                    <div class="flex items-center justify-between">
+                        <x-input-label for="password" value="Password *"/>
+                        <x-password-generator-modal />
+                    </div>
                     <div class="relative mt-1">
                         <x-text-input wire:model="password" id="password"
                                       x-bind:type="show ? 'text' : 'password'"

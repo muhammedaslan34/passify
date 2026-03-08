@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passify</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="header">
+        <span class="title">Passify</span>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="generator">Generator</button>
+        <button class="tab" data-tab="search">Search</button>
+        <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Generator tab -->
+    <div id="tab-generator" class="tab-content active">
+        <div class="strength-bar-wrapper">
+            <div class="strength-label">
+                <span>Strength</span>
+                <span id="strength-text" class="strength-text">—</span>
+            </div>
+            <div class="strength-track">
+                <div id="strength-fill" class="strength-fill"></div>
+            </div>
+        </div>
+        <div class="length-wrapper">
+            <div class="length-label">
+                <span>Password length</span>
+                <span id="length-display">16 characters</span>
+            </div>
+            <input type="range" id="length-slider" min="8" max="64" value="16">
+        </div>
+        <div class="options">
+            <label><input type="checkbox" id="opt-lowercase" checked> Lowercase (abc)</label>
+            <label><input type="checkbox" id="opt-uppercase" checked> Uppercase (ABC)</label>
+            <label><input type="checkbox" id="opt-numbers" checked> Numbers (123)</label>
+            <label><input type="checkbox" id="opt-symbols" checked> Randomized symbols (!#$)</label>
+        </div>
+        <div class="password-display">
+            <span id="generated-password" class="password-text"></span>
+            <button id="copy-btn" class="icon-btn" title="Copy">&#x29C9;</button>
+        </div>
+        <button id="generate-btn" class="btn-primary">Generate</button>
+    </div>
+
+    <!-- Search tab -->
+    <div id="tab-search" class="tab-content">
+        <input type="text" id="search-input" placeholder="Search by name or URL..." class="search-input">
+        <div id="search-results" class="search-results"></div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="tab-settings" class="tab-content">
+        <div id="logged-out">
+            <p class="settings-text">Not connected to Passify.</p>
+            <button id="login-btn" class="btn-primary">Login via Passify</button>
+        </div>
+        <div id="logged-in" style="display:none">
+            <p class="settings-text">Connected to Passify.</p>
+            <button id="logout-btn" class="btn-secondary">Logout</button>
+        </div>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+</body>
+</html>
