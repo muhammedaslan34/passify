@@ -1,4 +1,4 @@
-const DEFAULT_PASSIFY_URL = 'http://localhost:8000';
+const DEFAULT_PASSIFY_URL = 'https://passify.pixeloud.com';
 
 // Listen for OAuth redirect from extension auth page
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

@@ -60,7 +60,7 @@ chrome.storage.local.get(['token'], ({ token }) => {
 
 document.getElementById('login-btn').addEventListener('click', () => {
     chrome.storage.local.get(['passifyUrl'], ({ passifyUrl }) => {
-        const base = passifyUrl || 'http://localhost:8000';
+        const base = passifyUrl || 'https://passify.pixeloud.com';
         chrome.tabs.create({ url: `${base}/extension/auth` });
     });
 });
