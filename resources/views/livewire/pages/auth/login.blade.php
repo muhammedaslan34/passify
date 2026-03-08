@@ -44,8 +44,13 @@ new #[Layout('layouts.auth')] class extends Component
         <p class="text-gray-500 text-sm mt-1">Sign in to access your credential vault</p>
     </div>
 
-    {{-- Session Status --}}
+    {{-- Session Status / Error (e.g. session expired) --}}
     <x-auth-session-status class="mb-5" :status="session('status')" />
+    @if (session('error'))
+        <div class="mb-5 font-medium text-sm text-red-600">
+            {{ session('error') }}
+        </div>
+    @endif
 
     <form wire:submit="login" class="space-y-5" novalidate>
 
