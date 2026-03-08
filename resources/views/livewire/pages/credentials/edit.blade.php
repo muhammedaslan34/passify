@@ -129,7 +129,7 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
 
                 <div x-data="{ show: false }"
-                     @use-generated-password.window="$wire.set('password', $event.detail.password)">
+                     x-on:use-generated-password.window="$wire.set('password', $event.detail.password)">
                     <div class="flex items-center justify-between">
                         <x-input-label for="password" value="Password *"/>
                         <x-password-generator-modal />
