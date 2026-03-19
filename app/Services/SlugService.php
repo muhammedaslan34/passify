@@ -14,9 +14,10 @@ class SlugService
         $slug = $base ?: 'org';
         $i    = 2;
 
-        while (true) {
+        $maxAttempts = 100;
+        while ($maxAttempts-- > 0) {
             $inOrgs = Organization::where('slug', $slug)
-                ->when($excludeOrgId, fn($q) => $q->where('id', '!=', $excludeOrgId))
+                ->when($excludeOrgId !== null, fn($q) => $q->where('id', '!=', $excludeOrgId))
                 ->exists();
 
             $inHistory = OrganizationSlugHistory::where('slug', $slug)->exists();
@@ -26,5 +27,6 @@ class SlugService
             }
             $slug = $base . '-' . $i++;
         }
+        throw new \RuntimeException("Could not generate a unique slug for: {$name}");
     }
 }
