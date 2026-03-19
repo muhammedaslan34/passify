@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrganizationSlugHistory extends Model
 {
+    protected $table = 'organization_slug_history';
+
     public $timestamps = false;
     const CREATED_AT = 'created_at';
 
