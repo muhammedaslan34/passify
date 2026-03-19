@@ -22,53 +22,125 @@ Two independent features:
 ```
 slug  VARCHAR(255)  UNIQUE  NOT NULL
 ```
-Generated from `name` via `Str::slug()`. Uniqueness enforced by appending `-2`, `-3`, etc.
+Generated from `name` via `Str::slug()`. Uniqueness enforced by appending `-2`, `-3`, etc. (see Slug Generation below).
 
 **New `organization_slug_history` table:**
 ```
 id               BIGINT UNSIGNED  PK
 organization_id  BIGINT UNSIGNED  FK → organizations (cascade delete)
 slug             VARCHAR(255)     UNIQUE NOT NULL
-created_at       TIMESTAMP
+created_at       TIMESTAMP        NULL
+INDEX(organization_id)
 ```
-Stores every slug an org has ever had, so old URLs can redirect permanently.
+Stores every slug an org has ever had so old URLs redirect permanently. No `updated_at` — records are insert-only.
 
-### Model
+### Model: Organization
 
-`Organization::resolveRouteBinding()` override:
-1. Look up org by `slug` column — return if found.
-2. If not found, check `organization_slug_history` for a matching slug.
-3. If history match found — issue a 301 redirect to `route('organizations.show', $org)` with the current slug.
-4. If neither found — abort 404.
+**`getRouteKeyName()`** returns `'slug'`.
 
-`Organization` gets a `slugHistory()` hasMany relationship to `OrganizationSlugHistory`.
+**`resolveRouteBinding($value, $field = null)`** override:
+1. Attempt `Organization::where('slug', $value)->first()` — return if found.
+2. If not found, check `OrganizationSlugHistory::where('slug', $value)->with('organization')->first()`.
+3. If history record found — throw a new `OldSlugRedirectException($history->organization)` carrying the current org model.
+4. If neither found — return `null` (Laravel converts null to 404 automatically).
+
+**`OldSlugRedirectException`** (new class at `app/Exceptions/OldSlugRedirectException.php`):
+- Holds the `Organization` model instance.
+- Registered in `bootstrap/app.php` inside the existing `->withExceptions(function (Exceptions $exceptions): void { ... })` block:
+
+```php
+$exceptions->renderable(function (OldSlugRedirectException $ex, Request $request) {
+    return redirect()->route('organizations.show', $ex->organization)->setStatusCode(301);
+});
+```
+
+Note: `301` must be set via `->setStatusCode(301)` on the response — `renderable()` does not accept a status code argument.
+
+**`slugHistory()`** hasMany `OrganizationSlugHistory`.
 
 ### Slug Generation
 
-A private `generateUniqueSlug(string $name, ?int $excludeId = null): string` method (or a dedicated `SlugService`) handles:
-- `Str::slug($name)` as base
-- Appends `-2`, `-3`, etc. until unique (excluding current org's own slug on update)
+`SlugService` class at `app/Services/SlugService.php` with a static method:
+
+```php
+public static function generateUnique(string $name, ?int $excludeOrgId = null): string
+{
+    $base = Str::slug($name);
+    $slug = $base;
+    $i    = 2;
+
+    while (true) {
+        $inOrgs    = Organization::where('slug', $slug)
+                        ->when($excludeOrgId, fn($q) => $q->where('id', '!=', $excludeOrgId))
+                        ->exists();
+        $inHistory = OrganizationSlugHistory::where('slug', $slug)->exists();
+
+        if (!$inOrgs && !$inHistory) {
+            return $slug;
+        }
+        $slug = $base . '-' . $i++;
+    }
+}
+```
+
+Uniqueness is checked across **both** `organizations.slug` and `organization_slug_history.slug` to prevent a new org from claiming a slug that currently redirects to another org.
 
 ### Name Change Flow (Settings page)
 
 When org name is saved in `organizations/settings.blade.php`:
-1. Generate new slug from new name.
-2. If new slug === current slug → no slug change needed.
-3. If different → insert current slug into `organization_slug_history` → update `organizations.slug` to new slug.
+1. Call `SlugService::generateUnique($newName, $org->id)` to get the candidate slug.
+2. If candidate === current `$org->slug` → no slug change needed.
+3. If different:
+   a. Insert current slug into `organization_slug_history` (`organization_id`, `slug`, `created_at`).
+   b. Update `organizations.slug` to the new slug.
 
 ### Routes
 
-No route changes. All existing `{organization}` route parameters continue to work — Laravel resolves via the overridden `resolveRouteBinding()`.
+No route definition changes — all existing `{organization}` parameters continue to work via the overridden `resolveRouteBinding()`.
 
-URLs in views that use `route('organizations.show', $organization)` automatically use the current slug because the model's route key is `slug`.
+All `route('organizations.*', $organization)` calls in views automatically use the current slug because `getRouteKeyName()` returns `'slug'`.
 
-**`getRouteKeyName()` returns `'slug'`.**
+### VerifyOrganizationMembership Middleware Change
+
+The existing middleware has a fallback branch (line 23) that runs when route model binding has not yet resolved the model:
+
+```php
+// BEFORE (broken after slug routing):
+$organization = $organization ? Organization::find($organization) : null;
+
+// AFTER (slug-aware):
+$organization = $organization ? Organization::where('slug', $organization)->first() : null;
+```
+
+`Organization::find()` performs a primary-key lookup — it will return null for a slug string. The fix replaces it with a slug-based query. The rest of the middleware (null → 404, member check) remains unchanged.
 
 ### Migration Strategy
 
-A migration adds the `slug` column and populates it for all existing orgs:
+1. Migration `add_slug_to_organizations_table`: adds nullable `slug` column, populates all existing orgs using `SlugService::generateUnique($org->name)` (accessed as a static call, fully qualified), then sets column to NOT NULL + adds UNIQUE index.
+2. Migration `create_organization_slug_history_table`: creates the history table.
+
+**Migration pseudocode for slug population:**
 ```php
-Organization::each(fn($org) => $org->update(['slug' => generateUniqueSlug($org->name)]));
+use App\Services\SlugService;
+// Run after Organization model is available
+Organization::orderBy('id')->each(function ($org) {
+    $org->timestamps = false;
+    $org->update(['slug' => SlugService::generateUnique($org->name)]);
+});
+```
+
+### `OrganizationSlugHistory` Model
+
+```php
+public $timestamps = false;   // table has only created_at, no updated_at
+const CREATED_AT = 'created_at';
+
+protected $fillable = ['organization_id', 'slug'];
+
+public function organization(): BelongsTo
+{
+    return $this->belongsTo(Organization::class);
+}
 ```
 
 ---
@@ -79,116 +151,182 @@ Organization::each(fn($org) => $org->update(['slug' => generateUniqueSlug($org->
 
 **New `service_types` table:**
 ```
-id               BIGINT UNSIGNED  PK
-name             VARCHAR(255)     NOT NULL
-color            VARCHAR(255)     NOT NULL  -- Tailwind badge class pair, e.g. "bg-blue-100 text-blue-700"
-organization_id  BIGINT UNSIGNED  NULLABLE  FK → organizations (cascade delete)
-                                            -- NULL = global type (super admin managed)
-                                            -- set  = org-specific custom type
-created_by       BIGINT UNSIGNED  FK → users (set null on delete)
+id               BIGINT UNSIGNED   PK
+name             VARCHAR(255)      NOT NULL
+color            VARCHAR(255)      NOT NULL   -- Tailwind badge class pair e.g. "bg-blue-100 text-blue-700"
+organization_id  BIGINT UNSIGNED   NULLABLE   FK → organizations (cascade delete)
+                                              -- NULL = global (super admin managed)
+                                              -- set  = org-specific custom type
+created_by       BIGINT UNSIGNED   NULLABLE   FK → users (set null on delete)
 timestamps
 INDEX(organization_id)
 ```
 
+`created_by` is NULLABLE because the FK uses SET NULL on user delete.
+
 **`credentials` table — changes:**
+- Add `service_type_id  BIGINT UNSIGNED  FK → service_types (RESTRICT)` (RESTRICT prevents deleting a type that has credentials)
 - Drop `service_type` enum column
-- Add `service_type_id  BIGINT UNSIGNED  FK → service_types (restrict)`
 
-### Data Migration
+### Seeded Global Service Types
 
-A migration after schema changes:
-1. Seed 7 global service types (organization_id = null):
-   - hosting → `bg-blue-100 text-blue-700`
-   - domain → `bg-purple-100 text-purple-700`
-   - email → `bg-pink-100 text-pink-700`
-   - database → `bg-orange-100 text-orange-700`
-   - social_media → `bg-cyan-100 text-cyan-700`
-   - analytics → `bg-emerald-100 text-emerald-700`
-   - other → `bg-gray-100 text-gray-600`
-2. Map all existing `credentials.service_type` string values to the new `service_type_id` FK.
-3. Drop `credentials.service_type` enum column.
+The data migration seeds these 7 rows with `organization_id = NULL`:
+
+| name         | color                            | maps from enum value |
+|--------------|----------------------------------|----------------------|
+| Hosting      | `bg-blue-100 text-blue-700`      | `hosting`            |
+| Domain       | `bg-purple-100 text-purple-700`  | `domain`             |
+| Email        | `bg-pink-100 text-pink-700`      | `email`              |
+| Database     | `bg-orange-100 text-orange-700`  | `database`           |
+| Social Media | `bg-cyan-100 text-cyan-700`      | `social_media`       |
+| Analytics    | `bg-emerald-100 text-emerald-700`| `analytics`          |
+| Other        | `bg-gray-100 text-gray-600`      | `other`              |
+
+### Data Migration Order
+
+Migration `migrate_credentials_service_type_to_fk`:
+1. Add `service_type_id` column (nullable initially).
+2. Insert the 7 global `service_types` rows above.
+3. Map each existing credential's enum string to the new FK:
+   ```php
+   $map = [
+       'hosting'      => ServiceType::where('name', 'Hosting')->value('id'),
+       'domain'       => ServiceType::where('name', 'Domain')->value('id'),
+       'email'        => ServiceType::where('name', 'Email')->value('id'),
+       'database'     => ServiceType::where('name', 'Database')->value('id'),
+       'social_media' => ServiceType::where('name', 'Social Media')->value('id'),
+       'analytics'    => ServiceType::where('name', 'Analytics')->value('id'),
+       'other'        => ServiceType::where('name', 'Other')->value('id'),
+   ];
+   foreach ($map as $enumVal => $typeId) {
+       DB::table('credentials')->where('service_type', $enumVal)->update(['service_type_id' => $typeId]);
+   }
+   ```
+4. Set `service_type_id` to NOT NULL.
+5. Add RESTRICT FK constraint.
+6. Add `INDEX(service_type_id)` on `credentials` (replacing the dropped `INDEX(service_type)`).
+7. Drop `service_type` enum column.
+
+**Rollback note:** The `down()` for this migration is complex — it requires re-adding the enum column, reverse-mapping `service_type_id` back to enum strings, dropping the FK, and dropping `service_type_id`. Given this is a production data migration, treat it as effectively irreversible. The `down()` method should throw a `RuntimeException('This migration cannot be safely reversed.')` to prevent accidental rollback.
 
 ### Models
 
 **`ServiceType` model:**
-- `fillable`: `name`, `color`, `organization_id`, `created_by`
-- `organization()` belongsTo (nullable)
-- `credentials()` hasMany
-- Scope `global()`: `whereNull('organization_id')`
-- Scope `forOrg(int $orgId)`: `where('organization_id', $orgId)`
+```php
+protected $fillable = ['name', 'color', 'organization_id', 'created_by'];
+
+public function organization(): BelongsTo { ... }   // nullable
+public function credentials(): HasMany { ... }
+public function scopeGlobal($q) { return $q->whereNull('organization_id'); }
+public function scopeForOrg($q, int $orgId) { return $q->where('organization_id', $orgId); }
+```
 
 **`Credential` model:**
-- Replace `service_type` string cast with `service_type_id`
+- Remove `service_type` from `$fillable`, add `service_type_id`
+- Remove `service_type` cast
 - Add `serviceType()` belongsTo `ServiceType`
 
 **`Organization` model:**
 - Add `serviceTypes()` hasMany `ServiceType`
 
-### Service Type Resolution
+### Service Type Resolution Query
 
-When populating the type dropdown or filter buttons for an org, query:
 ```php
-ServiceType::where(fn($q) => $q->whereNull('organization_id')->orWhere('organization_id', $org->id))
-    ->orderByRaw('organization_id IS NULL DESC')  // globals first
-    ->orderBy('name')
-    ->get();
+ServiceType::where(function ($q) use ($org) {
+    $q->whereNull('organization_id')
+      ->orWhere('organization_id', $org->id);
+})
+->orderByRaw('CASE WHEN organization_id IS NULL THEN 0 ELSE 1 END')  // globals first, standard SQL
+->orderBy('name')
+->get();
 ```
 
-### Authorization
+Using `CASE WHEN` instead of `IS NULL` for portability across MySQL and SQLite (used in tests).
+
+### Authorization — ServiceTypePolicy
 
 **Global types** (`organization_id = null`):
-- Create / Edit / Delete: super admin only
-- View: everyone
+- `create`, `update`, `delete`: super admin only
+- `view`: any authenticated user
 
 **Org-specific types** (`organization_id = $org->id`):
-- Create: org owner OR super admin
-- Edit / Delete: org owner OR super admin
-- View: all org members
+- `create`: org owner OR super admin
+- `update`, `delete`: org owner OR super admin
+- `view`: any org member
 
-A `ServiceTypePolicy` handles these rules.
+### Delete Guard
 
-### UI — Admin Panel
+Before attempting deletion in the Volt component, check:
+```php
+if ($serviceType->credentials()->exists()) {
+    $this->addError('delete', 'Cannot delete a type that has credentials assigned to it.');
+    return;
+}
+```
+The DB RESTRICT FK constraint is the safety net; the application-level check provides user-friendly messaging.
 
-New route: `GET /admin/service-types` → `pages.admin.service-types` Volt component
-- Lists all global service types with name + color preview
-- Inline create form (name + color picker from preset palette)
-- Delete button (with confirmation) — blocked if any credentials reference the type
-- Edit name/color inline
+### UI — Filter Bar on `organizations/show.blade.php`
 
-Added as a nav link in the admin sidebar/header.
+**`$filterType`** changes from a string enum value to an integer (`service_type_id`). The filter query changes from:
+```php
+->when($this->filterType, fn($q) => $q->where('service_type', $this->filterType))
+```
+to:
+```php
+->when($this->filterType, fn($q) => $q->where('service_type_id', $this->filterType))
+```
+
+Filter buttons are generated dynamically from the merged global + org types query. The hardcoded array in the blade template is replaced with a `#[Computed]` method returning `ServiceType` models. Each button displays `$type->name` and is keyed by `$type->id`.
+
+`serviceTypeLabel()` and `serviceTypeBadge()` helper methods on the component are removed; the view reads `$credential->serviceType->name` and `$credential->serviceType->color` directly.
+
+### UI — Admin Panel: Global Service Types
+
+New route inside the existing `super.admin` middleware prefix group:
+```php
+Volt::route('/service-types', 'pages.admin.service-types')->name('service-types');
+```
+
+Component features:
+- Lists all global service types (name + color swatch preview)
+- Inline create form: name field + color picker (8 preset swatches)
+- Inline edit name/color
+- Delete button with confirmation — pre-checked with `credentials()->exists()` before deletion
+- Accessible from admin nav
 
 ### UI — Per-Org Service Types Tab
 
-New route: `GET /organizations/{organization}/service-types` → `pages.organizations.service-types` Volt component
-- Tab added to org navigation (alongside Members, Settings)
-- Shows list: global types (labeled "Global", read-only for owners) + org custom types
-- Owners see inline "Add custom type" form: name field + color picker (8 preset Tailwind pairs)
-- Owners can delete their org's custom types (with confirmation, blocked if referenced by credentials)
+New route inside the existing `org.member` middleware group:
+```php
+Volt::route('/organizations/{organization}/service-types', 'pages.organizations.service-types')
+    ->name('organizations.service-types');
+```
+
+Component features:
+- New tab in org navigation (alongside Members, Settings) — visible to all members
+- Shows global types (labeled "Global", read-only for non-super-admins) + org's custom types
+- Owners see an inline "Add custom type" form: name + color swatch picker
+- Owners can delete org-specific types (pre-checked: no credentials assigned)
 - Super admin can manage both global and org-specific types from this view
 
-### Color Palette (preset)
+### Color Palette (preset 8 swatches)
 
-8 options shown as clickable swatches:
 ```
-bg-blue-100 text-blue-700      (blue)
-bg-purple-100 text-purple-700  (purple)
-bg-pink-100 text-pink-700      (pink)
-bg-orange-100 text-orange-700  (orange)
-bg-cyan-100 text-cyan-700      (cyan)
-bg-emerald-100 text-emerald-700 (emerald)
-bg-yellow-100 text-yellow-700  (yellow)
-bg-gray-100 text-gray-600      (gray)
+bg-blue-100 text-blue-700
+bg-purple-100 text-purple-700
+bg-pink-100 text-pink-700
+bg-orange-100 text-orange-700
+bg-cyan-100 text-cyan-700
+bg-emerald-100 text-emerald-700
+bg-yellow-100 text-yellow-700
+bg-gray-100 text-gray-600
 ```
 
 ### Credential Forms (create/edit)
 
-`service_type` select becomes a dropdown populated from the merged global + org types query. Stores `service_type_id` instead of enum string.
-
-Validation rule changes from `in:hosting,domain,...` to `exists:service_types,id`.
-
-### Organization Show Page (filter bar)
-
-Filter buttons dynamically generated from the merged type list instead of hardcoded array. `serviceTypeBadge()` and `serviceTypeLabel()` helpers replaced by reading from the `ServiceType` model's `color` and `name` fields.
+- `service_type` field → `service_type_id` (integer)
+- Dropdown populated from merged global + org types query
+- Validation rule: `exists:service_types,id` (replacing `in:hosting,domain,...`)
 
 ---
 
@@ -198,36 +336,41 @@ Filter buttons dynamically generated from the merged type list instead of hardco
 - `add_slug_to_organizations_table`
 - `create_organization_slug_history_table`
 - `create_service_types_table`
-- `migrate_credentials_service_type_to_fk` (data migration)
+- `migrate_credentials_service_type_to_fk` (data migration — seeds globals, remaps FKs, drops enum)
 
 ### New models
 - `app/Models/OrganizationSlugHistory.php`
 - `app/Models/ServiceType.php`
 
+### New services
+- `app/Services/SlugService.php`
+
+### New exceptions
+- `app/Exceptions/OldSlugRedirectException.php`
+
 ### New policies
 - `app/Policies/ServiceTypePolicy.php`
 
-### Modified models
-- `app/Models/Organization.php` — slug logic, resolveRouteBinding, slugHistory()
-- `app/Models/Credential.php` — service_type_id, serviceType()
+### Modified files
+- `app/Models/Organization.php` — `getRouteKeyName()`, `resolveRouteBinding()`, `slugHistory()`, `serviceTypes()`
+- `app/Models/Credential.php` — `service_type_id`, `serviceType()` relationship
+- `bootstrap/app.php` — register `OldSlugRedirectException` renderable handler (301 redirect)
+- `app/Http/Middleware/VerifyOrganizationMembership.php` — ensure null org (slug not found) returns 404 not 403
+- `routes/web.php` — add org service-types route (in `org.member` group) + admin service-types route (in `super.admin` group)
+- `resources/views/livewire/pages/organizations/show.blade.php` — dynamic type filter with `service_type_id`
+- `resources/views/livewire/pages/organizations/settings.blade.php` — slug update on name change
+- `resources/views/livewire/pages/credentials/create.blade.php` — `service_type_id` dropdown
+- `resources/views/livewire/pages/credentials/edit.blade.php` — `service_type_id` dropdown
 
 ### New Volt components
 - `resources/views/livewire/pages/admin/service-types.blade.php`
 - `resources/views/livewire/pages/organizations/service-types.blade.php`
 
-### Modified Volt components
-- `pages/organizations/show.blade.php` — dynamic type filter
-- `pages/organizations/settings.blade.php` — slug update on name change
-- `pages/credentials/create.blade.php` — service_type_id dropdown
-- `pages/credentials/edit.blade.php` — service_type_id dropdown
-
-### Modified routes
-- `routes/web.php` — add org service-types route, admin service-types route
-
 ---
 
 ## Out of Scope
 
-- Slug history UI (no page to view old slugs — they just redirect silently)
-- Custom colors beyond the 8 preset swatches
+- Slug history UI (old slugs redirect silently, no management page)
+- Custom hex colors beyond the 8 preset swatches
 - Importing/exporting service types across orgs
+- Renaming global service type names from within an org context
