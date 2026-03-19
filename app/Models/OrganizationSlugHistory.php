@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrganizationSlugHistory extends Model
 {
+    // Explicit table name — Laravel would pluralize to 'organization_slug_histories'
     protected $table = 'organization_slug_history';
 
-    public $timestamps = false;
-    const CREATED_AT = 'created_at';
+    public $timestamps = true;
+    const UPDATED_AT = null;   // disable updated_at only; created_at is still auto-managed
 
-    protected $fillable = ['organization_id', 'slug'];
+    protected $fillable = ['organization_id', 'slug', 'created_at'];
 
     protected $casts = [
         'created_at' => 'datetime',
