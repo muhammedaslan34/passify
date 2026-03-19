@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\OldSlugRedirectException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -32,5 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->with('error', __('Session expired. Please try again.'));
             }
             return null;
+        });
+
+        $exceptions->renderable(function (OldSlugRedirectException $ex, Request $request) {
+            return redirect()->route('organizations.show', $ex->organization)->setStatusCode(301);
         });
     })->create();
