@@ -2,6 +2,224 @@
 @tailwind components;
 @tailwind utilities;
 
+[x-cloak] {
+  display: none !important;
+}
+
+/* Brand color remap: existing UI uses indigo/violet utilities; map them to red. */
+.bg-indigo-50,
+.bg-indigo-50\/30,
+.bg-indigo-50\/40,
+.bg-indigo-50\/50,
+.bg-indigo-50\/70 {
+  @apply bg-red-50;
+}
+
+.bg-indigo-100 {
+  @apply bg-red-100;
+}
+
+.bg-indigo-600 {
+  @apply bg-red-600;
+}
+
+.bg-indigo-700,
+.bg-violet-700 {
+  @apply bg-red-700;
+}
+
+.bg-violet-600 {
+  @apply bg-rose-600;
+}
+
+.text-indigo-100 {
+  @apply text-red-100;
+}
+
+.text-indigo-200 {
+  @apply text-red-200;
+}
+
+.text-indigo-300 {
+  @apply text-red-300;
+}
+
+.text-indigo-400 {
+  @apply text-red-400;
+}
+
+.text-indigo-500 {
+  @apply text-red-500;
+}
+
+.text-indigo-600 {
+  @apply text-red-600;
+}
+
+.text-indigo-700 {
+  @apply text-red-700;
+}
+
+.text-indigo-800 {
+  @apply text-red-800;
+}
+
+.border-indigo-200 {
+  @apply border-red-200;
+}
+
+.border-indigo-300 {
+  @apply border-red-300;
+}
+
+.border-indigo-400 {
+  @apply border-red-400;
+}
+
+.focus\:border-indigo-500:focus {
+  @apply border-red-500;
+}
+
+.focus\:ring-indigo-500:focus,
+.focus-visible\:ring-indigo-500:focus-visible {
+  @apply ring-red-500;
+}
+
+.focus\:ring-indigo-500,
+.focus-visible\:ring-indigo-500 {
+  --tw-ring-color: rgb(239 68 68 / 0.5);
+}
+
+.hover\:bg-indigo-50:hover,
+.hover\:bg-indigo-50\/30:hover,
+.hover\:bg-indigo-50\/40:hover,
+.hover\:bg-indigo-50\/50:hover,
+.hover\:bg-indigo-50\/70:hover {
+  @apply bg-red-50;
+}
+
+.hover\:bg-indigo-100:hover {
+  @apply bg-red-100;
+}
+
+.hover\:bg-indigo-600:hover {
+  @apply bg-red-600;
+}
+
+.hover\:bg-indigo-700:hover,
+.hover\:bg-violet-700:hover {
+  @apply bg-red-700;
+}
+
+.hover\:text-indigo-400:hover {
+  @apply text-red-400;
+}
+
+.hover\:text-indigo-500:hover {
+  @apply text-red-500;
+}
+
+.hover\:text-indigo-600:hover {
+  @apply text-red-600;
+}
+
+.hover\:text-indigo-700:hover {
+  @apply text-red-700;
+}
+
+.hover\:text-indigo-800:hover {
+  @apply text-red-800;
+}
+
+.hover\:border-indigo-200:hover {
+  @apply border-red-200;
+}
+
+.hover\:border-indigo-300:hover {
+  @apply border-red-300;
+}
+
+.from-indigo-500 {
+  --tw-gradient-from: rgb(239 68 68) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(239 68 68 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-indigo-600 {
+  --tw-gradient-from: rgb(220 38 38) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(220 38 38 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.to-indigo-700,
+.to-violet-700 {
+  --tw-gradient-to: rgb(185 28 28) var(--tw-gradient-to-position);
+}
+
+.to-violet-600 {
+  --tw-gradient-to: rgb(225 29 72) var(--tw-gradient-to-position);
+}
+
+.accent-indigo-600 {
+  accent-color: rgb(220 38 38);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+html.dark .bg-white {
+  @apply bg-slate-900;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-gray-100,
+html.dark .bg-slate-50 {
+  @apply bg-slate-950;
+}
+
+html.dark .border-gray-100,
+html.dark .border-gray-200 {
+  @apply border-slate-800;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700 {
+  @apply text-slate-100;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-gray-400,
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  @apply text-slate-400;
+}
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  @apply bg-slate-800;
+}
+
+html.dark .hover\:text-gray-900:hover {
+  @apply text-white;
+}
+
+html.dark .bg-white\/90 {
+  background-color: rgb(15 23 42 / 0.9);
+}
+
+html.dark .shadow-sm,
+html.dark .shadow-md,
+html.dark .shadow-2xl {
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.45);
+}
+
 /* Mobile bottom nav: safe-area for notched devices */
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0);

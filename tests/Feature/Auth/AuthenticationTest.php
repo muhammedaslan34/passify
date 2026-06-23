@@ -56,15 +56,15 @@ class AuthenticationTest extends TestCase
 
     public function test_navigation_menu_can_be_rendered(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
 
         $this->actingAs($user);
 
-        $response = $this->get('/dashboard');
-
-        $response
-            ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+        Volt::test('layout.navigation')
+            ->assertSee('Organizations')
+            ->assertSee('Profile');
     }
 
     public function test_users_can_logout(): void
