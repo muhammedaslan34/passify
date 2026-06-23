@@ -23,15 +23,32 @@ return new class extends Migration
         });
 
         // 2. Backfill existing rows from the enum value via slug lookup.
-        DB::statement('UPDATE credentials c JOIN service_types s ON s.slug = c.service_type SET c.service_type_id = s.id');
+        $serviceTypeIdsBySlug = DB::table('service_types')
+            ->pluck('id', 'slug');
+
+        foreach ($serviceTypeIdsBySlug as $slug => $serviceTypeId) {
+            DB::table('credentials')
+                ->where('service_type', $slug)
+                ->update(['service_type_id' => $serviceTypeId]);
+        }
+
+        $fallbackServiceTypeId = $serviceTypeIdsBySlug['other']
+            ?? $serviceTypeIdsBySlug->first();
+
+        if ($fallbackServiceTypeId !== null) {
+            DB::table('credentials')
+                ->whereNull('service_type_id')
+                ->update(['service_type_id' => $fallbackServiceTypeId]);
+        }
 
         // 3. Make the new column NOT NULL (every row now resolves to a seeded type).
         Schema::table('credentials', function (Blueprint $table) {
             $table->unsignedBigInteger('service_type_id')->nullable(false)->change();
         });
 
-        // 4. Drop the legacy enum column (contract). Its index drops automatically.
+        // 4. Drop the legacy enum column (contract).
         Schema::table('credentials', function (Blueprint $table) {
+            $table->dropIndex(['service_type']);
             $table->dropColumn('service_type');
         });
     }
@@ -45,11 +62,19 @@ return new class extends Migration
                 ->after('organization_id');
         });
 
-        DB::statement('UPDATE credentials c JOIN service_types s ON s.id = c.service_type_id SET c.service_type = s.slug');
+        $serviceTypeSlugsById = DB::table('service_types')
+            ->pluck('slug', 'id');
+
+        foreach ($serviceTypeSlugsById as $serviceTypeId => $slug) {
+            DB::table('credentials')
+                ->where('service_type_id', $serviceTypeId)
+                ->update(['service_type' => $slug]);
+        }
 
         Schema::table('credentials', function (Blueprint $table) {
             $table->dropForeign(['service_type_id']);
             $table->dropColumn('service_type_id');
+            $table->index('service_type');
         });
     }
 };

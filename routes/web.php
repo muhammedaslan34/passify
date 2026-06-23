@@ -56,6 +56,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Volt::route('/organizations', 'pages.admin.organizations')
             ->name('organizations');
 
+        Volt::route('/service-types', 'pages.admin.service-types')
+            ->name('service-types');
+
         Volt::route('/users', 'pages.admin.users')
             ->name('users');
     });

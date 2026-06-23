@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'org.member'  => \App\Http\Middleware\VerifyOrganizationMembership::class,
+            'org.member' => \App\Http\Middleware\VerifyOrganizationMembership::class,
             'super.admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
         ]);
     })
@@ -32,7 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->withInput($request->except('password', '_token'))
                     ->with('error', __('Session expired. Please try again.'));
             }
-            return null;
+
+            return $response;
         });
 
         $exceptions->renderable(function (OldSlugRedirectException $ex, Request $request) {

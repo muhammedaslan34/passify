@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Exceptions\OldSlugRedirectException;
-use App\Models\OrganizationSlugHistory;
 use App\Services\SlugService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +15,15 @@ class Organization extends Model
     use HasFactory;
 
     protected $fillable = ['name', 'slug', 'website_url', 'description', 'created_by'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $organization): void {
+            if (blank($organization->slug) && filled($organization->name)) {
+                $organization->slug = SlugService::generateUnique($organization->name);
+            }
+        });
+    }
 
     // ── Slug Routing ─────────────────────────────────────────────────────────────
 
@@ -32,7 +40,15 @@ class Organization extends Model
             return $org;
         }
 
-        // 2. Check slug history → redirect
+        // 2. Keep existing numeric ids working for API clients and older links.
+        if ($field === null && ctype_digit((string) $value)) {
+            $org = static::find((int) $value);
+            if ($org) {
+                return $org;
+            }
+        }
+
+        // 3. Check slug history → redirect
         $history = OrganizationSlugHistory::where('slug', $value)
             ->with('organization')
             ->first();
@@ -55,7 +71,7 @@ class Organization extends Model
         // Archive the old slug
         OrganizationSlugHistory::create([
             'organization_id' => $this->id,
-            'slug'            => $this->slug,
+            'slug' => $this->slug,
         ]);
 
         $this->update(['slug' => $newSlug]);

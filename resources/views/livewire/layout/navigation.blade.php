@@ -40,6 +40,9 @@ new class extends Component
                         <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" wire:navigate>
                             {{ __('Admin') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.service-types')" :active="request()->routeIs('admin.service-types')" wire:navigate>
+                            {{ __('Service Types') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')" wire:navigate>
                             {{ __('Users') }}
                         </x-nav-link>
@@ -101,6 +104,9 @@ new class extends Component
             @if(auth()->user()->is_super_admin)
                 <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" wire:navigate>
                     {{ __('Admin') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.service-types')" :active="request()->routeIs('admin.service-types')" wire:navigate>
+                    {{ __('Service Types') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')" wire:navigate>
                     {{ __('Users') }}

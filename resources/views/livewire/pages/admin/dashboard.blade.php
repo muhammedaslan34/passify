@@ -117,7 +117,7 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
         {{-- Quick Nav --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <a href="{{ route('admin.organizations') }}" wire:navigate
                class="group flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-indigo-200 hover:shadow-md transition-all duration-200 cursor-pointer">
                 <div class="w-11 h-11 rounded-xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors duration-200">
@@ -130,6 +130,22 @@ new #[Layout('layouts.app')] class extends Component
                     <p class="text-sm text-gray-400 mt-0.5">View, enter, or delete any organization</p>
                 </div>
                 <svg class="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </a>
+
+            <a href="{{ route('admin.service-types') }}" wire:navigate
+               class="group flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-emerald-200 hover:shadow-md transition-all duration-200 cursor-pointer">
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center shrink-0 transition-colors duration-200">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 7.5h9m-9 4.5h6m-8.25 8.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-gray-800 group-hover:text-emerald-600 transition-colors duration-200">Manage Service Types</p>
+                    <p class="text-sm text-gray-400 mt-0.5">Create, edit, activate, or retire credential categories</p>
+                </div>
+                <svg class="w-5 h-5 text-gray-300 group-hover:text-emerald-400 transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
                 </svg>
             </a>
