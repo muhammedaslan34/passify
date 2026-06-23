@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Organization;
+use App\Models\ServiceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class CredentialFactory extends Factory
@@ -11,7 +12,7 @@ class CredentialFactory extends Factory
     {
         return [
             'organization_id' => Organization::factory(),
-            'service_type'    => $this->faker->randomElement(['hosting', 'domain', 'email', 'database', 'social_media', 'analytics', 'other']),
+            'service_type_id' => ServiceType::query()->inRandomOrder()->value('id') ?? 1,
             'name'            => $this->faker->company(),
             'website_url'     => $this->faker->url(),
             'email'           => $this->faker->email(),

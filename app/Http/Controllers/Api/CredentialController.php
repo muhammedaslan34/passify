@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Credential;
 use App\Models\Organization;
+use App\Models\ServiceType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 
 class CredentialController extends Controller
 {
@@ -16,7 +19,7 @@ class CredentialController extends Controller
         }
 
         return response()->json([
-            'data' => $organization->credentials()->get()->map(fn ($c) => $this->format($c)),
+            'data' => $organization->credentials()->with('serviceType')->get()->map(fn ($c) => $this->format($c)),
         ]);
     }
 
@@ -27,15 +30,20 @@ class CredentialController extends Controller
         }
 
         $validated = $request->validate([
-            'service_type' => ['required', 'in:hosting,domain,email,database,social_media,analytics,other'],
-            'name'         => ['required', 'string', 'max:255'],
-            'website_url'  => ['nullable', 'url', 'max:255'],
-            'email'        => ['nullable', 'email', 'max:255'],
-            'password'     => ['required', 'string', 'max:1000'],
-            'note'         => ['nullable', 'string', 'max:2000'],
+            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'service_type'    => ['nullable', 'string', Rule::exists('service_types', 'slug')],
+            'name'            => ['required', 'string', 'max:255'],
+            'website_url'     => ['nullable', 'url', 'max:255'],
+            'email'           => ['nullable', 'email', 'max:255'],
+            'password'        => ['required', 'string', 'max:1000'],
+            'note'            => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $credential = $organization->credentials()->create($validated);
+        $credential = $organization->credentials()->create(
+            Arr::except($validated, ['service_type', 'service_type_id']) + [
+                'service_type_id' => $this->resolveServiceTypeId($validated),
+            ]
+        );
 
         return response()->json(['data' => $this->format($credential)], 201);
     }
@@ -49,17 +57,22 @@ class CredentialController extends Controller
         abort_if($credential->organization_id !== $organization->id, 404);
 
         $validated = $request->validate([
-            'service_type' => ['sometimes', 'in:hosting,domain,email,database,social_media,analytics,other'],
-            'name'         => ['sometimes', 'required', 'string', 'max:255'],
-            'website_url'  => ['sometimes', 'nullable', 'url', 'max:255'],
-            'email'        => ['sometimes', 'nullable', 'email', 'max:255'],
-            'password'     => ['sometimes', 'string', 'max:1000'],
-            'note'         => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'service_type'    => ['nullable', 'string', Rule::exists('service_types', 'slug')],
+            'name'            => ['sometimes', 'required', 'string', 'max:255'],
+            'website_url'     => ['sometimes', 'nullable', 'url', 'max:255'],
+            'email'           => ['sometimes', 'nullable', 'email', 'max:255'],
+            'password'        => ['sometimes', 'string', 'max:1000'],
+            'note'            => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 
-        $credential->update($validated);
+        $credential->update(
+            Arr::except($validated, ['service_type', 'service_type_id']) + [
+                'service_type_id' => $this->resolveServiceTypeId($validated) ?? $credential->service_type_id,
+            ]
+        );
 
-        return response()->json(['data' => $this->format($credential->fresh())]);
+        return response()->json(['data' => $this->format($credential->fresh()->load('serviceType'))]);
     }
 
     public function destroy(Request $request, Organization $organization, Credential $credential)
@@ -87,7 +100,7 @@ class CredentialController extends Controller
         $credentials = Credential::whereIn('organization_id', $orgIds)
             ->when($url, fn ($query) => $query->where('website_url', 'like', "%{$url}%"))
             ->when($q,   fn ($query) => $query->where('name', 'like', "%{$q}%"))
-            ->with('organization:id,name')
+            ->with(['organization:id,name', 'serviceType'])
             ->limit(10)
             ->get()
             ->map(fn ($c) => array_merge($this->format($c), [
@@ -100,14 +113,36 @@ class CredentialController extends Controller
     private function format(Credential $c): array
     {
         return [
-            'id'              => $c->id,
-            'organization_id' => $c->organization_id,
-            'service_type'    => $c->service_type,
-            'name'            => $c->name,
-            'website_url'     => $c->website_url,
-            'email'           => $c->email,
-            'password'        => $c->password,
-            'note'            => $c->note,
+            'id'                 => $c->id,
+            'organization_id'    => $c->organization_id,
+            'service_type_id'    => $c->service_type_id,
+            'service_type'       => $c->serviceType?->slug,
+            'service_type_name'  => $c->serviceType?->name,
+            'service_type_color' => $c->serviceType?->color,
+            'name'               => $c->name,
+            'website_url'        => $c->website_url,
+            'email'              => $c->email,
+            'password'           => $c->password,
+            'note'               => $c->note,
         ];
+    }
+
+    /**
+     * Resolve the incoming service type to an id. Prefers an explicit id,
+     * falls back to the legacy slug (the Chrome extension sends service_type: 'other').
+     */
+    private function resolveServiceTypeId(array $validated): ?int
+    {
+        if (! empty($validated['service_type_id'])) {
+            return (int) $validated['service_type_id'];
+        }
+
+        if (! empty($validated['service_type'])) {
+            return (int) ServiceType::where('slug', $validated['service_type'])->value('id');
+        }
+
+        return (int) ServiceType::where('slug', 'other')->value('id')
+            ?: (int) ServiceType::active()->ordered()->value('id')
+            ?: null;
     }
 }

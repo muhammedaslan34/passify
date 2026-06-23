@@ -10,14 +10,15 @@ class Credential extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['organization_id', 'service_type', 'name', 'website_url', 'email', 'password', 'note'];
-
-    protected $casts = [
-        'service_type' => 'string',
-    ];
+    protected $fillable = ['organization_id', 'service_type_id', 'name', 'website_url', 'email', 'password', 'note'];
 
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function serviceType(): BelongsTo
+    {
+        return $this->belongsTo(ServiceType::class);
     }
 }

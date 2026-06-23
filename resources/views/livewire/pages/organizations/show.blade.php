@@ -2,6 +2,7 @@
 
 use App\Models\Credential;
 use App\Models\Organization;
+use App\Models\ServiceType;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -11,7 +12,7 @@ new #[Layout('layouts.app')] class extends Component
     public Organization $organization;
 
     public string $search = '';
-    public string $filterType = '';
+    public string $filterTypeId = '';
 
     public function mount(Organization $organization): void
     {
@@ -23,10 +24,17 @@ new #[Layout('layouts.app')] class extends Component
     public function credentials()
     {
         return $this->organization->credentials()
+            ->with('serviceType')
             ->when($this->search, fn($q) => $q->where('name', 'like', '%' . $this->search . '%'))
-            ->when($this->filterType, fn($q) => $q->where('service_type', $this->filterType))
+            ->when($this->filterTypeId, fn($q) => $q->where('service_type_id', $this->filterTypeId))
             ->orderBy('name')
             ->get();
+    }
+
+    #[Computed]
+    public function serviceTypes()
+    {
+        return ServiceType::active()->ordered()->get();
     }
 
     public function isOwner(): bool
@@ -40,32 +48,6 @@ new #[Layout('layouts.app')] class extends Component
         $this->authorize('delete', $credential);
         $credential->delete();
         session()->flash('status', 'Credential deleted.');
-    }
-
-    public function serviceTypeLabel(string $type): string
-    {
-        return match($type) {
-            'hosting'      => 'Hosting',
-            'domain'       => 'Domain',
-            'email'        => 'Email',
-            'database'     => 'Database',
-            'social_media' => 'Social Media',
-            'analytics'    => 'Analytics',
-            default        => 'Other',
-        };
-    }
-
-    public function serviceTypeBadge(string $type): string
-    {
-        return match($type) {
-            'hosting'      => 'bg-blue-100 text-blue-700',
-            'domain'       => 'bg-purple-100 text-purple-700',
-            'email'        => 'bg-pink-100 text-pink-700',
-            'database'     => 'bg-orange-100 text-orange-700',
-            'social_media' => 'bg-cyan-100 text-cyan-700',
-            'analytics'    => 'bg-emerald-100 text-emerald-700',
-            default        => 'bg-gray-100 text-gray-600',
-        };
     }
 }; ?>
 
@@ -138,10 +120,15 @@ new #[Layout('layouts.app')] class extends Component
 
                 {{-- Service Type Filter --}}
                 <div class="flex flex-wrap gap-1.5">
-                    @foreach([''=>'All', 'hosting'=>'Hosting', 'domain'=>'Domain', 'email'=>'Email', 'database'=>'Database', 'social_media'=>'Social', 'analytics'=>'Analytics', 'other'=>'Other'] as $value => $label)
-                        <button wire:click="$set('filterType', '{{ $value }}')"
-                                class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $filterType === $value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                            {{ $label }}
+                    <button wire:click="$set('filterTypeId', '')"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $filterTypeId === '' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                        All
+                    </button>
+                    @foreach($this->serviceTypes as $type)
+                        <button wire:click="$set('filterTypeId', '{{ $type->id }}')"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $filterTypeId === (string) $type->id ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                            <span class="w-2 h-2 rounded-full {{ $type->dotClasses() }}"></span>
+                            {{ $type->name }}
                         </button>
                     @endforeach
                 </div>
@@ -157,13 +144,13 @@ new #[Layout('layouts.app')] class extends Component
                     </svg>
                 </div>
                 <p class="text-gray-500 mb-4">
-                    @if($search || $filterType)
+                    @if($search || $filterTypeId)
                         No credentials match your filter.
                     @else
                         No credentials stored yet.
                     @endif
                 </p>
-                @if($this->isOwner() && !$search && !$filterType)
+                @if($this->isOwner() && !$search && !$filterTypeId)
                     <a href="{{ route('credentials.create', $organization) }}" wire:navigate
                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition">
                         Add First Credential
@@ -177,8 +164,9 @@ new #[Layout('layouts.app')] class extends Component
                          x-data="{ showPass: false, copied: null }">
                         <div class="flex items-start gap-4">
                             <div class="shrink-0 mt-0.5">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold {{ $this->serviceTypeBadge($credential->service_type) }}">
-                                    {{ $this->serviceTypeLabel($credential->service_type) }}
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold {{ $credential->serviceType?->badgeClasses() ?? 'bg-gray-100 text-gray-600' }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $credential->serviceType?->dotClasses() ?? 'bg-gray-500' }}"></span>
+                                    {{ $credential->serviceType?->name ?? 'Unknown' }}
                                 </span>
                             </div>
 

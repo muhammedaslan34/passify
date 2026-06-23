@@ -9,6 +9,14 @@ export default {
         './resources/views/**/*.blade.php',
     ],
 
+    safelist: [
+        {
+            // Service-type badges/dots use data-driven colors, so the literal
+            // class names never appear in a template. Force-generate them.
+            pattern: /^(bg|text|ring)-(gray|slate|red|orange|amber|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|500|600|700)$/,
+        },
+    ],
+
     theme: {
         extend: {
             fontFamily: {

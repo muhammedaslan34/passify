@@ -2,6 +2,8 @@
 
 use App\Models\Credential;
 use App\Models\Organization;
+use App\Models\ServiceType;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -9,7 +11,7 @@ new #[Layout('layouts.app')] class extends Component
 {
     public Organization $organization;
 
-    public string $service_type = 'other';
+    public ?int $service_type_id = null;
     public string $name = '';
     public string $website_url = '';
     public string $email = '';
@@ -20,19 +22,14 @@ new #[Layout('layouts.app')] class extends Component
     {
         $this->organization = $organization;
         $this->authorize('create', [Credential::class, $organization]);
+
+        $this->service_type_id = ServiceType::active()->ordered()->value('id')
+            ?? ServiceType::ordered()->value('id');
     }
 
-    public function serviceTypes(): array
+    public function serviceTypes()
     {
-        return [
-            'hosting'      => 'Hosting',
-            'domain'       => 'Domain',
-            'email'        => 'Email',
-            'database'     => 'Database',
-            'social_media' => 'Social Media',
-            'analytics'    => 'Analytics',
-            'other'        => 'Other',
-        ];
+        return ServiceType::active()->ordered()->pluck('name', 'id');
     }
 
     public function save(): void
@@ -40,12 +37,12 @@ new #[Layout('layouts.app')] class extends Component
         $this->authorize('create', [Credential::class, $this->organization]);
 
         $validated = $this->validate([
-            'service_type' => ['required', 'in:hosting,domain,email,database,social_media,analytics,other'],
-            'name'         => ['required', 'string', 'max:255'],
-            'website_url'  => ['nullable', 'url', 'max:255'],
-            'email'        => ['nullable', 'email', 'max:255'],
-            'password'     => ['required', 'string', 'max:1000'],
-            'note'         => ['nullable', 'string', 'max:2000'],
+            'service_type_id' => ['required', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'name'            => ['required', 'string', 'max:255'],
+            'website_url'     => ['nullable', 'url', 'max:255'],
+            'email'           => ['nullable', 'email', 'max:255'],
+            'password'        => ['required', 'string', 'max:1000'],
+            'note'            => ['nullable', 'string', 'max:2000'],
         ]);
 
         $this->organization->credentials()->create($validated);
@@ -81,14 +78,19 @@ new #[Layout('layouts.app')] class extends Component
             <form wire:submit="save" class="p-6 space-y-5">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                        <x-input-label for="service_type" value="Service Type *"/>
-                        <select wire:model="service_type" id="service_type"
+                        <div class="flex items-center justify-between">
+                            <x-input-label for="service_type_id" value="Service Type *"/>
+                            @if(auth()->user()->is_super_admin)
+                                <a href="{{ route('admin.service-types') }}" wire:navigate class="text-xs text-indigo-500 hover:underline">Manage types</a>
+                            @endif
+                        </div>
+                        <select wire:model="service_type_id" id="service_type_id"
                                 class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                             @foreach($this->serviceTypes() as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
-                        <x-input-error :messages="$errors->get('service_type')" class="mt-2"/>
+                        <x-input-error :messages="$errors->get('service_type_id')" class="mt-2"/>
                     </div>
 
                     <div>
