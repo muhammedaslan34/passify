@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyOrganizationMembership;
 use App\Models\Organization;
 use App\Models\ServiceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -39,6 +42,94 @@ class OrganizationAndServiceTypeManagementTest extends TestCase
             'user_id' => $user->id,
             'role' => 'owner',
         ]);
+    }
+
+    public function test_org_membership_middleware_resolves_slug_route_parameters_for_existing_organizations(): void
+    {
+        $user = User::factory()->create();
+        $oldOrganization = Organization::factory()->create([
+            'created_by' => $user->id,
+            'name' => 'Old Org',
+            'slug' => 'old-org',
+        ]);
+        $oldOrganization->members()->attach($user->id, ['role' => 'owner']);
+
+        $newOrganization = Organization::factory()->create([
+            'created_by' => $user->id,
+            'name' => 'New Org',
+            'slug' => 'new-org',
+        ]);
+        $newOrganization->members()->attach($user->id, ['role' => 'owner']);
+
+        $request = Request::create('/organizations/old-org', 'GET');
+        $route = new Route('GET', '/organizations/{organization}', fn () => response('ok'));
+        $route->bind($request);
+
+        $request->setRouteResolver(fn () => $route);
+        $request->setUserResolver(fn () => $user);
+
+        $response = app(VerifyOrganizationMembership::class)->handle(
+            $request,
+            fn ($resolvedRequest) => response($resolvedRequest->route('organization')->name)
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertInstanceOf(Organization::class, $request->route('organization'));
+        $this->assertSame($oldOrganization->id, $request->route('organization')->id);
+        $this->assertSame('Old Org', $response->getContent());
+    }
+
+    public function test_owner_can_delete_owned_organization_from_the_index_page(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->create(['created_by' => $user->id]);
+        $organization->members()->attach($user->id, ['role' => 'owner']);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.organizations.index')
+            ->call('deleteOrganization', $organization->id)
+            ->assertHasNoErrors()
+            ->assertSee('Organization deleted.');
+
+        $this->assertDatabaseMissing('organizations', [
+            'id' => $organization->id,
+        ]);
+    }
+
+    public function test_member_cannot_delete_organization_from_the_index_page(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $organization = Organization::factory()->create(['created_by' => $owner->id]);
+        $organization->members()->attach($owner->id, ['role' => 'owner']);
+        $organization->members()->attach($member->id, ['role' => 'member']);
+
+        $this->actingAs($member);
+
+        Volt::test('pages.organizations.index')
+            ->assertDontSee('Delete')
+            ->call('deleteOrganization', $organization->id);
+
+        $this->assertDatabaseHas('organizations', [
+            'id' => $organization->id,
+        ]);
+    }
+
+    public function test_organizations_index_can_switch_between_grid_and_list_views(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->create(['created_by' => $user->id, 'name' => 'Acme']);
+        $organization->members()->attach($user->id, ['role' => 'owner']);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.organizations.index')
+            ->assertSet('viewMode', 'grid')
+            ->call('setViewMode', 'list')
+            ->assertSet('viewMode', 'list')
+            ->assertSee('Add another organization')
+            ->assertSee('Acme');
     }
 
     public function test_super_admin_service_types_page_is_displayed(): void
